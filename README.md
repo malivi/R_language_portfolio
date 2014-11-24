@@ -1,15 +1,19 @@
-MachineLearning: A comparison between Boosting and Random Forest
+**Files with Rmd extension** for code files
 
-RegressionModels: The power of regression with R
+**Files with md extension** for reports
 
-Statistical_Inference: Parameter estimation and Hypothesis Testing
+####*MachineLearning:* A comparison between Boosting and Random Forest
 
-ActivityPatternAnalysis: Raw data analysis
+####*RegressionModels:* The power of regression with R
 
-WeatherEventsAnalysis: Impact of wether events in US
+####*Statistical_Inference:* Parameter estimation and Hypothesis Testing
 
-Get&CleanData: Preprocessing and Cleaning Data
+####*ActivityPatternAnalysis:* Raw data analysis
 
-Exploratory Data Analysis: Graphical represantion of data
+####*WeatherEventsAnalysis:* Impact of wether events in US
 
-Forecast Web Application: [https://malivi.shinyapps.io/stockForecast/](https://malivi.shinyapps.io/stockForecast/)
+####*Get&CleanData:* Preprocessing and Cleaning Data
+
+####*Exploratory Data Analysis:* Graphical represantion of data
+
+####*Forecast Web Application:* [https://malivi.shinyapps.io/stockForecast/](https://malivi.shinyapps.io/stockForecast/)
