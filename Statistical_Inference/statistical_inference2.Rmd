@@ -1,0 +1,188 @@
+---
+title: "Statistical Inference Course Project Part 2"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+---
+
+The purpose of this part of the project is to analyze the ToothGrowth data in the R datasets package.
+
+### Basic information about the dataset:
+
+The response is the length of odontoblasts (teeth) in each of 10 guinea pigs at each of three dose levels of Vitamin C (0.5, 1, and 2 mg) with each of two delivery methods (orange juice or ascorbic acid).
+
+### Format:
+
+A data frame with 60 observations on 3 variables.
+
+[,1]  **len** / numeric / Tooth length
+
+[,2]	 **supp** / factor / Supplement type (VC or OJ).
+
+[,3]	 **dose** / numeric / Dose in milligrams.
+
+```{r init, echo = FALSE}
+
+library(ggplot2)
+
+```
+
+# 1. Load the ToothGrowth data and perform some basic exploratory data analyses 
+
+These are the first rows of the dataset:
+
+```{r load, echo = FALSE}
+
+data(ToothGrowth)
+
+tg <- ToothGrowth
+tg <- transform(tg, dose = factor(dose))
+
+head(ToothGrowth)
+
+```
+
+The first column - **len** - is the length of the teeth, the second - **supp** - is the delivery method (VC : vitamin C, OJ: orange juice) and the third - **dose** - is the dose level of the treatment (values: 0.5 or  1.0 or 2.0).  
+
+The main interest is the dependence of length from dose and supp. In order to make some first remarks, a boxplot graph is plotted that tries to illustrate the depedence of **len** from **dose** for the two different **supp** values.
+
+From the following boxplot some initial remarks can be made:
+
+1. The length is an increasing function of dose for both delivery methods (separately or jointly)
+2. The length for the case of *orange juice* seems in average better than the case of *vitamin C*.
+3. For the two lowest dose levels (0.5 and 1.0), the length seems smaller for both delivery methods but for the maximum dose level (2.0) the mean length seems almost equal for both delivery methods
+
+```{r eda, echo = FALSE, fig.width = 6, fig.height = 3}
+
+ggplot(tg, aes(x=dose, y=len, fill = dose)) +
+     geom_boxplot() +
+     facet_grid(.~supp) +
+     xlab("dose level of the treatment") +
+     ylab("length of the teeth")
+
+```
+
+# 2. Provide a basic summary of the data.
+
+The summary of the whole dataset shows the range of values of **len** and the values of the other two variables:
+
+```{r summary1, echo = FALSE}
+
+summary(tg)
+
+```
+
+The length variable **len** has values from 4.20 to 33.90. The **dose** takes three values of 0.5, 1.0 and 1.5 and each one appears for 20 times. Finally, the supplement type - **type** - takes two values (OJ and VC) and each one appears for 30 times. It is concluded that there is a total number of measurements of 60 and 10 for each combination of supplement and dose.
+
+Further summary of **len** can be presented for the 6 combinations corresponding to each pair of **supp** and **dose**:
+```{r summary2, echo = FALSE}
+
+aggregate(tg$len, list(tg$supp, tg$dose), summary)
+
+```
+
+The numerical results are in agreement with the presented boxplot. 
+
+# 3. Use confidence intervals and hypothesis tests to compare tooth growth by supp and dose. (Use the techniques from class even if there's other approaches worth considering)
+
+We try to investigate the three visual observations during the exploratory data analysis, presented in section 1.
+
+1. In order to test the increase of length as a function of dose level, for both supplement cases, four test hypotheses are formulated and the calculated limits of the interval and p-values are presented:
+
+```{r ht1, echo = FALSE}
+
+res1 <- data.frame(conf.int1 = rep(0, 4), conf.int2 = rep(0, 4), p.value = rep(0,4))
+
+res1[1,] <- unlist(with(subset(tg, supp == "OJ"),
+            t.test(len[dose == "0.5"], len[dose == "1"],
+            var.equal = FALSE))[c("conf.int", "p.value")])
+
+res1[2,] <- unlist(with(subset(tg, supp == "OJ"),
+            t.test(len[dose == "1"], len[dose == "2"],
+            var.equal = FALSE))[c("conf.int", "p.value")])
+
+res1[3,] <- unlist(with(subset(tg, supp == "VC"),
+            t.test(len[dose == "0.5"], len[dose == "1"],
+            var.equal = FALSE))[c("conf.int", "p.value")])
+
+res1[4,] <- unlist(with(subset(tg, supp == "VC"),
+            t.test(len[dose == "1"], len[dose == "2"],
+            var.equal = FALSE))[c("conf.int", "p.value")])
+
+res1[,1:2] # lower and upper lmit of confidence interval
+
+res1[,3] # p-values
+
+```
+
+From the calculated values and assuming an alpha level of 0.05, all the null hypothesis are rejected. From the confidence intervals it can be concluded that zero is not in interval and is purely negative. All these enforces that the function is increasing.
+
+With the a simpler calculation can also illustrated that the previous fact is also valid when the two supplements are jointly calculated:
+
+```{r ht12, echo = FALSE}
+
+res12 <- data.frame(conf.int1 = rep(0, 2), conf.int2 = rep(0, 2), p.value = rep(0,2))
+
+res12[1,] <- unlist(with(tg, t.test(len[dose == "0.5"], len[dose == "1"],
+             var.equal = FALSE))[c("conf.int", "p.value")])
+
+res12[2,] <- unlist(with(tg, t.test(len[dose == "1"], len[dose == "2"],
+             var.equal = FALSE))[c("conf.int", "p.value")])
+
+res12[,1:2] # lower and upper lmit of confidence interval
+
+res12[,3] # p-values
+
+```
+
+2. A hypothesis test is formed to check if there is difference between *orange juice* and *vitamin C* while all the dose levels are included:
+
+```{r ht2, echo = FALSE}
+
+res2 <- unlist(with(tg, t.test(len[supp == "OJ"],
+        len[supp == "VC"], var.equal = FALSE))[c("conf.int", "p.value")])
+
+res2[1:2] # lower and upper lmit of confidence interval
+
+res2[3] # p-values
+
+```
+
+From the result of the analysis and the assumption of 0.05 alpha level, the null hypothesis cannot be rejected.
+
+3. Hypothesis testing is used to compare the measurements for the same dose but with different delivery method. Three test hypotheses are formulated and the calculated limits of the interval and p-values are presented:
+
+```{r ht3a4, echo = FALSE}
+
+res3 <- data.frame(conf.int1 = rep(0, 3), conf.int2 = rep(0, 3), p.value = rep(0,3))
+
+res3[1,] <- unlist(with(subset(tg, dose == "0.5"),
+            t.test(len[supp == "VC"], len[supp == "OJ"],
+            var.equal = FALSE))[c("conf.int", "p.value")])
+
+res3[2,] <- unlist(with(subset(tg, dose == "1"),
+            t.test(len[supp == "VC"], len[supp == "OJ"],
+            var.equal = FALSE))[c("conf.int", "p.value")])
+
+res3[3,] <- unlist(with(subset(tg, dose == "2"),
+            t.test(len[supp == "VC"], len[supp == "OJ"],
+            var.equal = FALSE))[c("conf.int", "p.value")])
+
+res3[,1:2] # lower and upper lmit of confidence interval
+
+res3[,3] # p-values
+
+```
+
+For the two first tests (dose 0.5 and 1.0) the null hypothesis is rejected and the pure negative confidence interval does not include zero. But in the third case the case is exactly the opposite, the null hypothesis cannot be rejected. 
+
+# 4. State your conclusions and the assumptions needed for your conclusions. 
+
+The basic conclusions are:
+
+1. The length increases as the dose level increase for both delivery methods, considered either separately or jointly.
+2. When the doses are jointly analysed to compare the delivery methods, it cannot be concluded that one of the method is superior.
+3. The *orange juice* delivery method is superior for low dose levels (0.5 and 1.0) but this cannot be supported for the maximum dose level (2.0).
+
+The t.test (t-distribution) is used, so the assumption is made that the measurements follow the normal distribution. The results of the tests seem rather stable despite the small number of samples.

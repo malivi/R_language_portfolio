@@ -1,0 +1,94 @@
+---
+title: "Regression Models Course Project"
+output:
+  pdf_document: default
+---
+### 1. Questions
+* Is an automatic or manual transmission better for MPG
+* Quantify the MPG difference between automatic and manual transmissions
+
+### 2. Executive summary
+A straight forward approach to the questions, with a single regressor of automatic/manual, guides to the conclusion that manual transmission gives more Miles Per (US) Gallon (MPG) on average than automatic. The result is significant and the difference between them has a mean value of *7.24 Miles/(US) gallon*. But after a  more thorough approach with backward stepwise regression to identify the model, the results look different. The difference of manual transmission from automatic is not significant anymore and the mean value becomes *1.81 Miles/(US) gallon*. The cylinders, horsepower and weight appear as the significant regressors. It is obvious that the argument of manual over automatic in MPG cannot be considered without objection, from the specific mtcars dataset (small sample with 32 observations).
+
+### 3. Loading data and pre-processing
+After making an initial review of the **mtcars** dataset, with the use of *str* and *summary* function, it is noted that five variables must be coerced to factors and an annotation change is needed (Automatic and Manual) for clarity.
+```{r init, results = 'hide', message = FALSE, warning = FALSE}
+library(ggplot2); library(gridExtra); library(Hmisc); data(mtcars)
+for (col in c("cyl", "vs", "gear", "carb", "am"))
+     mtcars[, col] <- factor(mtcars[, col])
+levels(mtcars$am) <- c("Automatic", "Manual")
+```
+
+### 4. Exploratory Data Analysis
+Pair plots between the variables of the mtcars dataset are performed (see Figure 1 in Appendix). The outcome variable *mpg* appears to have dependencies from various variables except *am* (*cyl*, *disp*, *hp*, *drat*, etc). Furthermore the specific graphical relation of *mpg* with the transmission system (manual or automatic) can be shown in the upper left plot of Figure 3 (see Appendix). Manual appears to have higher *mpg* values from automatic.
+
+### 5. Simple regression model
+Firstly the simple model with the variable of interest **mpg** as outcome and a single regressor **am** which corresponds to transmission (0 = Automatic, 1 = Manual) is fitted.
+```{r single_regressor}
+lm1 <- lm(mpg ~ am, data = mtcars)
+summary(lm1)$coefficients
+```
+The variable *am* is a factor as a result the *intercept* corresponds to automatic and *amManual* to manual. The difference between the two transmission (automatic vs manual) in *mpg*, if the specific fitting model is accepted, is equal to the *amManual* coefficient (summary(lm1)$coefficients[2] : ```r summary(lm1)$coefficients[2]```) and manual is higher. The lower and upper level of its Confidence Interval are ```r confint(lm1)[2,1]``` and ```r confint(lm1)[2,2]``` respectively. It must be noted that the result is equivalent to a simple statistical inference t-test between the sample distribution of *mpg* for automatic and manual transmission.
+
+Both coefficients are significant but if Adjusted R-squared (summary(lm1)$adj.r.squared : ```r summary(lm1)$adj.r.squared```) is checked, it is obvious that there is a big part of variance that is not explained by the single regressor model. This fact probably suggests the existence of other confounders. Further investigation is needed.
+
+### 6. Backward stepwise regression model
+In order to investigate a model including more regressors, a stepwise regression procedure with backward elimination is used. An initial model including all the variables is fitted. The procedure continues by testing a deletion of each variable using a model comparison criterion (AIC), deleting the variable (if any) that improves the model the most and repeating this process until no further improvement is possible.
+```{r stepwise_regression}
+lm11 <- lm(mpg ~ ., data= mtcars)
+lmstep <- step(lm11, direction = "backward", trace = 0)
+summary(lmstep)$coefficients
+```
+The initial model *lm11* does not have any significant variables. Even the one with the lowest probability is above the alpha level 0.05. But after backward stepwise regression most of the variables are significant and the Adjusted R-squared (```r summary(lmstep)$adj.r.squared```) is satisfactory. In accordance with this model, manual is higher than automatic transmission and the difference between them is ```r summary(lmstep)$coefficients[6]```, but is not significant. The lower and upper level of its Confidence Interval are ```r confint(lmstep)[6,1]``` and ```r confint(lmstep)[6,2]``` respectively.
+
+### 7. Comparison of stepwise procedure with the single regressor model
+A comparison between the two models can also be performed with anova:
+```{r anova, results = "hide"}
+anova(lm1, lmstep)
+```
+The p-value (```r sprintf("%.2e", anova(lm1, lmstep)$"Pr(>F)"[2])```) suggests that the stepwise regression model is significant compared to the single regression model.
+
+### 8. Diagnostics
+In Figure 2 (see Appendix) the plots of the residuals analysis are presented. The residuals look "clean" from any remaining patterns. Because the points of the Q-Q plot are near the theoretical line, the residuals are almost normal distributed. Some points have higher leverage but not an extreme impact.
+
+## Appendix
+```{r pair_plots, echo = FALSE, fig.height= 4, fig.width = 7}
+pairs(mtcars, gap = 0.2, cex = 0.7)
+```
+**Figure 1. Pair plots between the variables of the mtcars dataset**
+
+```{r diagnostics_plots, echo = FALSE}
+par(mfrow = c(2, 2), mar = c(2, 5, 2, 1))
+plot(lmstep, cex = 0.5)
+```
+**Figure 2. Diagnostics plots for the residuals of the final model (backward stepwise regression)**
+
+```{r eda_plots, echo = FALSE}
+g1 <- ggplot(data = mtcars,
+             aes(x = am, y = mpg, fill = am)) +
+          geom_boxplot() +
+          guides(fill = guide_legend(title = "Transmission"))
+
+g2 <- ggplot(data = mtcars,
+             aes(x = am, y = mpg)) +
+          geom_boxplot(aes(x = am, y = mpg)) +
+          geom_jitter(size = 2,
+             aes(col = cut2(hp, g = 2))) +
+          guides(col = guide_legend(title = "horsepower"))
+
+g3 <- ggplot(data = mtcars,
+             aes(x = am, y = mpg)) +
+          geom_boxplot(aes(x = am, y = mpg)) +
+          geom_jitter(size = 2, aes(col = cut2(wt, g = 2))) +
+          guides(col = guide_legend(title = "weight"))
+
+g4 <- ggplot(data = mtcars,
+             aes(x = am, y = mpg)) +
+          geom_boxplot(aes(x = am, y = mpg)) +
+          geom_jitter(size = 2, aes(col = cyl)) +
+          guides(col = guide_legend(title = "Cylinders"))
+
+grid.arrange(g1, g2, g3, g4, nrow = 2)
+
+```
+**Figure 3. (upper left) Boxplot of mpg for the two transmission modes (manual and automatic). In the three remaining boxplots, the actual points for the different mpg values are plotted with different colors according to the other variables of the final model (cyl, wt, hp). In case of the numeric variables (wt and hp) the values are dichotomized**

@@ -1,0 +1,277 @@
+---
+title: "Investigation of the weather events with the highest impact in health and economy
+  across the United States"
+output: html_document
+---
+
+```{r init, echo = FALSE}
+
+library(ggplot2)
+library(reshape2)
+
+```
+
+##Synopsis
+
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage.
+
+The dataset used for the study originate from the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+The purpose of the analysis is to conclude which of the event types pose the higher threat for society, across the United States, in terms of a) population health and b) economic consequences.
+
+##Data Information
+
+The data for this assignment come in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size. The file from the course web site:
+
+- [Storm Data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) [47Mb]
+
+There is also some documentation of the database available where further information can be found such as how some of the variables are constructed/defined.
+
+- [National Weather Service Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
+- [National Climatic Data Center Storm Events FAQ](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf)
+
+The events in the database start in the year 1950 and end in November 2011. In the earlier years of the database there are generally fewer events recorded, most likely due to a lack of good records. More recent years should be considered more complete.
+
+##Data Processing
+
+The first step of processing is to load the data. In order to avoid loading data that are not used, the first 6 rows of the file are read and information is extracted to read only the desired columns (variables). In accordance with the documentation and the extracted variables, the needed variables are EVTYPE (event type), FATALITIES, INJURIES, PROPDMG (Property Damage), PROPDMGEXP (Property Damage Exponent), CROPDMG (Crop Damage) and CROPDMGEXP (Crop Damage Exponent).
+
+```{r read_data}
+
+url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+file_bz2 <- "repdata_data_StormData.csv.bz2"
+
+if (!file.exists(file_bz2))
+     download.file(url, file_bz2)
+
+DT_head <- read.csv(file_bz2, nrows = 6)
+
+names(DT_head)
+
+columns_to_read <- rep("NULL", ncol(DT_head))
+
+columns_to_read[c(8, 23:28)] <- c("factor", rep("numeric", 2),
+                                  rep(c("numeric", "factor"), 2))
+
+DT <- read.csv(file_bz2, colClasses = columns_to_read)
+
+```
+
+
+From the summary of the dataset and the schema of the data frame some initial remarks about the variables can be made:
+
+```{r summary_data}
+
+summary(DT)
+
+str(DT)
+
+levels(DT$PROPDMGEXP)
+levels(DT$CROPDMGEXP)
+
+```
+
+The number of different event types is 985 and the variety of the names used is large.
+
+The summaries of FATALITIES and INJURIES show that a high percentage of the values are zero (more than `r as.integer(mean(DT$FATALITIES == 0)*100)`% and  `r as.integer(mean(DT$INJURIES == 0)*100)`% respectively) and that they have a small amount of high values (maximum values are 583 and 1700 respectively).
+
+According to the documentation the values of PROPDMGEXP and CROPDMGEXP shoud have values "K", "M" and "B" corresponding to thousands, millions and billions respectively. But looking at the summary some different values are also found. The "k", "m" and "b" can be due to typing mistakes. The "h" and "H" shown below can also be interpreted as hundreds as their contribution to the results is limited. The other symbols will be removed from the analysis.
+
+In addition the letters are replaced with the corresponding numbers (1000, 1000000, 1000000000) to calculate total damages (property + corps damage) in dollars.
+
+
+```{r cleaning_data}
+
+levels(DT$PROPDMGEXP) <- c(rep("X", 13), "B", "H", "H", "K", "M", "M")
+levels(DT$CROPDMGEXP) <- c(rep("X", 4), "B", "K", "K", "M", "M")
+
+levels(DT$PROPDMGEXP) <- c("0", "1000000000", "100", "1000", "1000000")
+levels(DT$CROPDMGEXP) <- c("0", "1000000000", "1000", "1000000")
+
+DT$PROPDMG <- DT$PROPDMG*as.numeric(as.character(DT$PROPDMGEXP))
+DT$CROPDMG <- DT$CROPDMG*as.numeric(as.character(DT$CROPDMGEXP))
+DT$DMG <- round((DT$PROPDMG + DT$CROPDMG)/1000000000, digits = 2)
+DT$PROPDMG <- NULL
+DT$CROPDMG <- NULL
+DT$PROPDMGEXP <- NULL
+DT$CROPDMGEXP <- NULL
+
+names(DT) <- c("event.type", "fatalities", "injuries",
+               "damage")
+
+````
+
+An exploration of the data is performed to estimate the number of event types that are more dominant in the dataset. This is accomplished by ranking the data according to the frequency of appearance of the event types, choosing a set of the highest frequencies and taking into consideration the percentage of fatalities, injuries and damages that correspond to the selected set.
+
+```{r percent_dominant_events_before}
+
+DTag_sum <- aggregate(. ~ event.type, data = DT, sum)
+
+event_count <- tapply(DT$event.type, DT$event.type, length)
+
+DTag_sum$event_count <- event_count
+
+DTag_sum_order_cum <- DTag_sum[order(DTag_sum$event_count, decreasing = TRUE),]
+
+DTag_sum_order_cum[, 2:5] <- sapply(c(2:5),
+     function(i) cumsum(DTag_sum_order_cum[, i])/
+          sum(DTag_sum_order_cum[, i])*100)
+
+DTag_sum_order_cum$event.num <- seq(1,
+          length(DTag_sum_order_cum$event.type))
+
+DTag_sum_order_cum[c(20, 50, 100, 150, 200), ]
+
+```
+
+From the results it is obvious that, by taking into account the 200 event types with the highest frequency, the percentage of the variables of interest (fatalities, injuries, damage) is more than 98.5%.
+
+These 200 event types are used to define the rules to correct typographic mistakes during data entry and group event types that appear to belong in the same category. The information about the dataset (variables, documentation) and general severe weather events categories ([http://en.wikipedia.org/wiki/List_of_severe_weather_phenomena](http://en.wikipedia.org/wiki/List_of_severe_weather_phenomena)) are used to clean weather events nomenclature.
+
+
+```{r clean_events}
+
+event_types <- DT$event.type
+event_types <- tolower(event_types)
+
+event_types[grepl("flood|floood", event_types)] <- "flood"
+event_types[grepl("freeze|cold|chill|freez|frost|cool|low|winter weather|wintry", event_types)] <- "cold"
+event_types[grepl("heat|warmth|warm|record", event_types)] <- "heat"
+event_types[grepl("snow", event_types)] <- "snow"
+event_types[grepl("hail", event_types)] <- "hail"
+event_types[grepl("wind", event_types)] <- "wind"
+event_types[grepl("storm", event_types)] <- "storm"
+event_types[grepl("hurricane|typhoon", event_types)] <- "hurricane"
+event_types[grepl("ice|glaze|icy", event_types)] <- "ice"
+event_types[grepl("rain|shower", event_types)] <- "rain"
+event_types[grepl("tornado|waterspout", event_types)] <- "tornado"
+event_types[grepl("storm", event_types)] <- "storm"
+event_types[grepl("thunderstorm", event_types)] <- "thunderstorm"
+event_types[grepl("fog", event_types)] <- "fog"
+event_types[grepl("tsunami|rip|surf|seas|wave|marine accident|marine mishap", event_types)] <- "high seas"
+event_types[grepl("funnel", event_types)] <- "funnel clouds"
+event_types[grepl("tide", event_types)] <- "tide"
+event_types[grepl("drought|dry", event_types)] <- "drought"
+event_types[grepl("fire", event_types)] <- "fire"
+event_types[grepl("blizzard", event_types)] <- "blizzard"
+event_types[grepl("avalanche|avalanche", event_types)] <- "avalanche"
+event_types[grepl("wet", event_types)] <- "wet weather"
+event_types[grepl("lighting|lightning.|ligntning", event_types)] <- "lighting"
+event_types[grepl("precipitation|mixed precip", event_types)] <- "mixed precipitation"
+
+DT$event.type <- event_types
+
+```
+
+Aggregated data for fatalities, injuries and total damages in relation to the different event types are created for plotting purposes.
+
+```{r analysis}
+
+DTag_sum <- aggregate(. ~ event.type, data = DT, sum)
+
+DTag_mean <- aggregate(. ~ event.type, data = DT, mean)
+
+event_count <- tapply(DT$event.type, DT$event.type, length)
+
+```
+
+The dominant event types are recalculated for event count, fatalities, injuries and damages.
+
+```{r percent_dominant_events_after}
+
+DTag_sum$event_count <- event_count
+
+DTag_sum_order_cum <- DTag_sum[order(DTag_sum$event_count, decreasing = TRUE),]
+
+DTag_sum_order_cum[, 2:5] <- sapply(c(2:5),
+     function(i) cumsum(DTag_sum_order_cum[, i])/
+          sum(DTag_sum_order_cum[, i])*100)
+
+DTag_sum_order_cum$event.num <- seq(1,
+     length(DTag_sum_order_cum$event.type))
+
+DTag_sum_order_cum[c(10, 20, 30, 40, 50), ]
+
+```
+
+From these values can be concluded that, after the cleaning of the event type names, the 20 names with the highest frequency of appearance correspond to more than 99.8%. It is obvious that the rules created from the initial 200 most frequent event types helped also to clean the rest.
+
+##Results
+
+###1. Across the United States, which types of events are most harmful with respect to population health?
+
+In order to evaluate the impact of severe weather events to population health, the 10 most severe event types (highest total number of injuries) are extracted, the table is printed and a plot is presented. Tornadoes have the highest number of injuries and fatalities. Less severe but with high impact are also wind, heat and floods.
+
+Similar results for average injuries/fatalities (injuries/fatalities per event) are presented and further results about public health impact can be illustrated. Hurricanes and heat seem to be the most severe.
+
+
+```{r health_plots1}
+
+num_events_plot <- 10
+
+DTag_sum[order(DTag_sum$injuries,
+     decreasing = TRUE)[1:num_events_plot], 1:3]
+
+DTag_sum10_melted <- melt(DTag_sum[order(DTag_sum$injuries,
+     decreasing = TRUE)[1:num_events_plot], 1:3],
+     id.vars = "event.type", value.name = "count")
+
+ggplot(DTag_sum10_melted,
+       aes(x = event.type, y = count, fill = variable)) +
+       geom_bar(stat = "identity") +
+       coord_flip() +
+       ylab("Total number") +
+       xlab("") +
+       ggtitle("Total number of injuries/fatalities") +
+       scale_x_discrete(limit = DTag_sum10_melted[num_events_plot:1, 1])
+
+```
+
+**In the figure above, the total number of injuries and fatalities across the United States for the top 10 weather events with the highest total injuries is presented.**
+
+```{r health_plots2}
+
+DTag_mean10_melted <- melt(DTag_mean[order(DTag_mean$injuries,
+     decreasing = TRUE)[1:num_events_plot], 1:3],
+     id.vars = "event.type", value.name = "count")
+
+ggplot(DTag_mean10_melted,
+       aes(x = event.type, y = count, fill = variable)) +
+       geom_bar(stat = "identity") +
+       coord_flip() +
+       ylab("Average number") +
+       xlab("") +
+       ggtitle("Average number of injuries/fatalities") +
+       scale_x_discrete(limit = DTag_mean10_melted[num_events_plot:1, 1])
+
+```
+
+**In the figure above, the average number of injuries and fatalities across the United States for the top 10 weather events with the highest average injuries is presented.**
+
+###2. Across the United States, which types of events have the greatest economic consequences?
+
+The impact in economy of the various weather events is investigated. Floods and hurricanes appear to have the worst economical effects. The table and plot of the 10 weather event types with the highest damages are presented:
+
+
+```{r damages_plots}
+
+num_events_plot <- 10
+
+DTag_sum[order(DTag_sum$damage, decreasing = TRUE)[1:num_events_plot],
+         c(1, 4)]
+
+DTag_dmg_sum10_melted <- melt(DTag_sum[order(DTag_sum$damage,
+     decreasing = TRUE)[1:num_events_plot], c(1, 4)],
+     id.vars = "event.type", value.name = "count")
+
+ggplot(DTag_dmg_sum10_melted, aes(x = event.type, y = count)) +
+          geom_bar(stat = "identity", fill = "green") +
+          coord_flip() +
+          ylab("Total number in billion dollars") +
+          xlab("") +
+          ggtitle("Total number of damages per weather event") +
+          scale_x_discrete(limit = DTag_dmg_sum10_melted[num_events_plot:1, 1])
+
+```
+
+**In the figure above, the total number of damages per weather event, across the United States, for the top 10 weather events with the highest total damages is presented.**

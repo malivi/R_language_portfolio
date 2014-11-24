@@ -1,0 +1,213 @@
+---
+title: "Statistical Inference Course Project Part 1"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+---
+```{r init, echo = FALSE}
+
+library(ggplot2)
+
+```
+
+The purpose of this part of the Course Project is to investigate the statistical behaviour of data following the exponential distribution. The properties of the distribution of the mean of 40 exponential(0.2)s will be illustrated via simulation and associated explanatory test.
+
+In the code below simulation is performed with the use of the *rexp* function. The variables **n**  and **m** define the number of simulated random variables. The value of **n** must be large enough to produce stable results and a range of values (100, 200, 500, 1000, 8000, 15000) is used for simulation, in order to be able to illustrate the convergence of the distribution for large numbers ( >= 1000). The value of **m** is 40 as the investigation is concentrated on the distribution of averages of 40 exponential(0.2)s. 
+
+```{r simulation}
+
+n <- c(100, 200, 500, 1000, 8000, 15000)
+m <- 40
+lambda <- 0.2
+
+results <- lapply(n, function(x) {
+     apply(matrix(rexp(x*m, rate = lambda), x, m), 1, mean)
+})
+
+
+```
+
+##1. Show where the distribution is centered at and compare it to the theoretical center of the distribution.
+
+The center of the distribution of the simulated data can be calculated with the mean function. The results for the three maximum values of *n* (1000, 8000, 15000) are:
+
+```{r center_distribution}
+
+sapply(results[4:6], mean)
+
+```
+
+The theoritical center of the distribution is `1/lambda = 1/0.2 = 5` which is the mean of the exponential distribution with rate equals to *lambda*. The calculated values through simulation are very close to the theoretical value.
+
+##2. Show how variable it is and compare it to the theoretical variance of the distribution.
+
+The variability of the distribution can be illustrated with the sample variance:
+
+```{r variable_distribution}
+
+sapply(results[4:6], var)
+
+```
+
+According to the simulation parameters the theoretical variance of the 40 exponential(0.2)s average is equal to the variance (second power of standard deviation) of the exponential(0.2) distribution divided by the number of samples used for averaging: `1/lambda^2/40 = 0.625'. The calculated values through simulation are very close to the theoretical value.
+
+##3. Show that the distribution is approximately normal.
+
+Simulation for small iterations was also performed to be able to visualize the convergence of the 40-average distribution shape, for large number of iterations (a thousand or so), to the normal distribution. The normal distribution with mean and standard deviation in accordance with the theoretical values, presented in the previous questions, is plotted. It is obvious that for 1000 iterations the distribution is already very close to the normal distribution.
+
+```{r distribution1, echo = FALSE}
+
+mg <- 1/lambda
+
+sigma <- 1/lambda/sqrt(m)
+
+df_plot <- data.frame(x = unlist(results), scenario =
+          factor(rep(n, times = n), labels = paste(n, "iterations")))
+
+ggplot(df_plot, aes(x=x)) +
+     facet_wrap( ~ scenario, ncol = 3) +
+     geom_histogram(
+          aes(y=..density..),
+          binwidth=.2, colour="red",
+          fill="white") +
+     stat_function(fun =
+          function(x) 1/sqrt(2*pi*sigma^2)*exp(-(x - mg)^2/2/sigma^2),
+          colour = "black", size = 1) +
+     ggtitle("Distribution of 40-samples average (drawn from exponential distribution\nwith lambda = 0.2) in comparison to the normal distribution")
+
+```
+
+```{r distribution2, fig.width = 6, fig.height = 3, echo = FALSE}
+
+mg <- 1/lambda
+
+sigma <- 1/lambda/sqrt(m)
+
+df_plot <- data.frame(x = unlist(results), scenario =
+          factor(rep(n, times = n), labels = paste(n, "iterations")))
+
+ggplot(subset(df_plot, scenario == "1000 iterations"), aes(x=x)) +
+     geom_histogram(
+          aes(y=..density..),
+          binwidth=.2, colour="red",
+          fill="white") +
+     stat_function(fun =
+          function(x) 1/sqrt(2*pi*sigma^2)*exp(-(x - mg)^2/2/sigma^2),
+          colour = "black", size = 1) +
+     geom_vline(xintercept = 1/lambda, size = 1, col = "blue") +
+     geom_text(aes(1/lambda, -0.025), label = "mean = 5.0", col = "blue") +
+     ggtitle("Distribution of 40-samples average (exponential(0.2))\n in comparison to the normal distribution (1000 iterations)") +
+     theme(plot.title = element_text(lineheight=.8, face="bold"))
+
+```
+
+Another visualization technique for normality test is the QQ plot. This graph is presented only for the case of 1000 iterations but the conclusions can be generalized for more iterations (8000, 15000).
+
+```{r distribution3, fig.width = 6, fig.height = 3}
+
+qqnorm(results[[4]], cex = 0.5); qqline(results[[4]])
+
+```
+
+The qqplot is very close to the theoretical line, therefore normality is strong, especially in the central region. Departure from normality is observed in the tails of the distribution.
+
+##4. Evaluate the coverage of the confidence interval for 1/lambda.
+
+The proposed formula $\bar{X}\pm 1.96\frac{s}{\sqrt{n}}$ (method = "proposed") for the confidence interval (95%) can be used to calculate the lower and upper limits of the interval, where the sample mean and standard deviation are used. For each iteration, it is tested if the population parameter 1/lambda is included in the interval. The percentage of successes is calculated. The interval is tested for a large number of iterations (1000) with samples of length 40.
+
+Values of parameter lambda: 0.05 to 1.0 with step 0.05
+
+In addition, an alternative way to define the limits of the confidence interval is also tested $\frac{1}{\bar{X}}\left ( 1\pm \frac{1.96}{\sqrt{n}} \right )$ (method = "alternative") and the results are closer to the theoretical 95% interval. Details about the approximation can be found in:
+
+[wikipedia/Exponential_distribution#Confidence_intervals](http://en.wikipedia.org/wiki/Exponential_distribution#Confidence_intervals).
+
+
+```{r coverage1}
+
+nosim <- 1000
+
+lamvals <- seq(0.05, 1, by = 0.05)
+
+resl <- sapply(lamvals, function(lam) {
+
+     simdata <- matrix(rexp(nosim*m, rate = lam), nosim, m)
+     ml <- apply(simdata, 1, mean)
+     sdl <- apply(simdata, 1, sd)
+     
+     ll <- ml - 1.96*sdl/sqrt(m)
+     ul <- ml + 1.96*sdl/sqrt(m)
+
+     ll2 <- 1/ml*(1 - 1.96/sqrt(m))
+     ul2 <- 1/ml*(1 + 1.96/sqrt(m))
+     
+     c(mean((ll < 1/lam) & (ul > 1/lam))*100,
+       mean((ll2 < lam) & (ul2 > lam))*100)
+})
+
+```
+
+```{r coverage1_plot, fig.width = 6, fig.height = 3, echo = FALSE}
+
+df_plot_ci1 <- data.frame(x = rep(lamvals, 2),
+   p = c(resl[1,],resl[2,]),
+   method = gl(2, length(lamvals), labels = c("proposed", "alternative")))
+
+ggplot(data = df_plot_ci1, aes(x = x, y = p, colour = method)) +
+     geom_point() +
+     geom_line() +
+     xlab("values of lambda") +
+     ylab("Percentage inside CI (theoretical: 0.95)") +
+     geom_vline(xintercept = lambda, size = 1, col = "blue") +
+     geom_text(aes(lambda + 0.12, 91), label = "lambda = 0.2", col = "blue") +
+     geom_hline(yintercept = 95, size = 1, col = "red") +
+     geom_text(aes(lambda + 0.12, 94.8), label = "P = 0.95", col = "red")
+
+resl[,lamvals == 0.2] # values for our case (lambda = 0.2)
+
+```
+To further investigate the coverage of the confidence interval the same analysis is performed for using different number of samples for average (from 15 to 120 with step 5). The code is not presented but is similar to the previous analysis while the incremental variable is not lambda but m.
+
+```{r coverage2, fig.width = 6, fig.height = 3, echo = FALSE}
+
+nosim <- 1000
+
+mvals <- seq(15, 120, by = 5)
+
+resm <- sapply(mvals, function(mi) {
+
+     simdata <- matrix(rexp(nosim*mi, rate = lambda), nosim, mi)
+     ml <- apply(simdata, 1, mean)
+     sdl <- apply(simdata, 1, sd)
+     
+     ll <- ml - 1.96*sdl/sqrt(mi)
+     ul <- ml + 1.96*sdl/sqrt(mi)
+
+     ll2 <- 1/ml*(1 - 1.96/sqrt(mi))
+     ul2 <- 1/ml*(1 + 1.96/sqrt(mi))
+     
+     c(mean((ll < 1/lambda) & (ul > 1/lambda))*100,
+       mean((ll2 < lambda) & (ul2 > lambda))*100)
+})
+
+df_plot_ci1 <- data.frame(x = rep(mvals, 2),
+  p = c(resm[1,],resm[2,]),
+  method = gl(2, length(mvals), labels = c("proposed", "alternative")))
+
+ggplot(data = df_plot_ci1, aes(x = x, y = p, colour = method)) +
+     geom_point() +
+     geom_line() +
+     xlab("values of m") +
+     ylab("Percentage inside CI (theoretical: 0.95)") +
+     geom_vline(xintercept = m, size = 1, col = "blue") +
+     geom_text(aes(m + 10, 90), label = "m = 40", col = "blue") +
+     geom_hline(yintercept = 95, size = 1, col = "red") +
+     geom_text(aes(m + 10, 94.8), label = "P = 0.95", col = "red")
+
+```
+
+```{r printvalues}
+
+resm[,mvals == 40] # Values for our case (m = 40)
+
+```
