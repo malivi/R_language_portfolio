@@ -1,6 +1,10 @@
-**Files with Rmd extension** for code files
+Notes:
 
-**Files with md extension** for reports
+1. **Files with Rmd extension** for code
+
+2. **Files with md extension** for reports
+
+Directories:
 
 ####*MachineLearning:* A comparison between Boosting and Random Forest
 
