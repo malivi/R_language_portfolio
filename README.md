@@ -10,10 +10,10 @@
 
 ####*ActivityPatternAnalysis:* Raw data analysis
 
-####*WeatherEventsAnalysis:* Impact of wether events in US
+####*WeatherEventsAnalysis:* Impact of weather events in US
 
 ####*Get&CleanData:* Preprocessing and Cleaning Data
 
-####*Exploratory Data Analysis:* Graphical represantion of data
+####*Exploratory Data Analysis:* Graphical representation of data
 
 ####*Forecast Web Application:* [https://malivi.shinyapps.io/stockForecast/](https://malivi.shinyapps.io/stockForecast/)
