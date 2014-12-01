@@ -21,3 +21,5 @@ Directories:
 ####*Exploratory Data Analysis:* Graphical representation of data
 
 ####*Forecast Web Application:* [https://malivi.shinyapps.io/stockForecast/](https://malivi.shinyapps.io/stockForecast/)
+
+##### WebApp pitch presentation: [http://rpubs.com/malivi/stockForecast](http://rpubs.com/malivi/stockForecast)
