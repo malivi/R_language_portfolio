@@ -18,8 +18,8 @@ Directories:
 
 ####*Get&CleanData:* Preprocessing and Cleaning Data
 
-####*Exploratory Data Analysis:* Graphical representation of data
+####*ExploratoryDataAnalysis:* Graphical representation of data
 
-####*Forecast Web Application:* [https://malivi.shinyapps.io/stockForecast/](https://malivi.shinyapps.io/stockForecast/)
+####*StockForecastWebApp:* [https://malivi.shinyapps.io/stockForecast/](https://malivi.shinyapps.io/stockForecast/)
 
 ##### WebApp pitch presentation: [http://rpubs.com/malivi/stockForecast](http://rpubs.com/malivi/stockForecast)
